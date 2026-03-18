@@ -5,7 +5,6 @@ from agents.biography_team.base_biography_agent import BiographyConfig, Biograph
 from agents.biography_team.session_coordinator.prompts import (
     get_prompt,
     get_runtime_module_names,
-    INTERVIEW_QUESTIONS_PROMPT,
     TOPIC_EXTRACTION_PROMPT
 )
 from agents.biography_team.session_coordinator.tools import UpdateLastMeetingSummary, UpdateUserPortrait, DeleteInterviewQuestion
@@ -270,16 +269,26 @@ class SessionCoordinator(BiographyTeamAgent):
             else ""
         )
 
-        return INTERVIEW_QUESTIONS_PROMPT.format(
-            questions_and_notes=old_questions_and_notes,
-            selected_topics="\n".join(
-                selected_topics) if selected_topics else "",
-            follow_up_questions="\n\n".join([
+        format_params = {
+            "questions_and_notes": old_questions_and_notes,
+            "selected_topics": "\n".join(selected_topics) if selected_topics else "",
+            "follow_up_questions": "\n\n".join([
                 q.to_xml() for q in follow_up_questions
             ]),
-            event_stream="\n".join(events[-10:]),
-            similar_questions_warning=warning,
-            warning_output_format=QUESTION_WARNING_OUTPUT_FORMAT if \
+            "event_stream": "\n".join(events[-10:]),
+            "similar_questions_warning": warning,
+            "warning_output_format": QUESTION_WARNING_OUTPUT_FORMAT if \
                      similar_questions else "",
-            tool_descriptions=self.get_tools_description(question_tool_names)
+            "tool_descriptions": self.get_tools_description(question_tool_names),
+        }
+        runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+            agent_name="session_coordinator",
+            task="questions",
+            module_names=get_runtime_module_names("questions"),
+            include_shared=False,
+        )
+        return self.prompt_runtime.render_prompt(
+            runtime_bundle,
+            format_params,
+            legacy_renderer=lambda: get_prompt("questions").format(**format_params),
         )

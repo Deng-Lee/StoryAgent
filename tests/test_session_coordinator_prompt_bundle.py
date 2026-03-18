@@ -50,6 +50,76 @@ class SessionCoordinatorPromptBundleTests(unittest.TestCase):
             normalize_prompt_text(legacy_prompt),
         )
 
+    def test_questions_prompt_matches_legacy_prompt_without_warning(self) -> None:
+        variables = {
+            "selected_topics": "Career transitions\nMentorship",
+            "questions_and_notes": "[1] What was your first job in robotics?",
+            "follow_up_questions": (
+                "<follow_up_question>\n"
+                "  <content>What made you stay in robotics after college?</content>\n"
+                "</follow_up_question>"
+            ),
+            "event_stream": "<event>Recall found early-career memories.</event>",
+            "similar_questions_warning": "",
+            "warning_output_format": "",
+            "tool_descriptions": (
+                "<add_interview_question>...</add_interview_question>\n"
+                "<recall>...</recall>"
+            ),
+        }
+
+        bundle = self.runtime.build_prompt_bundle(
+            agent_name="session_coordinator",
+            task="questions",
+            module_names=get_runtime_module_names("questions"),
+            include_shared=False,
+        )
+
+        runtime_prompt = self.runtime.render_prompt(bundle, variables)
+        legacy_prompt = get_prompt("questions").format(**variables)
+
+        self.assertEqual(
+            normalize_prompt_text(runtime_prompt),
+            normalize_prompt_text(legacy_prompt),
+        )
+
+    def test_questions_prompt_matches_legacy_prompt_with_warning(self) -> None:
+        variables = {
+            "selected_topics": "Career transitions",
+            "questions_and_notes": "[2] How did your manager support you?",
+            "follow_up_questions": (
+                "<follow_up_question>\n"
+                "  <content>What changed after you started mentoring others?</content>\n"
+                "</follow_up_question>"
+            ),
+            "event_stream": "<event>Recall found mentoring-related memories.</event>",
+            "similar_questions_warning": (
+                "<similar_questions_warning>\n"
+                "Possible overlap with historical questions.\n"
+                "</similar_questions_warning>"
+            ),
+            "warning_output_format": "<proceed>true</proceed>",
+            "tool_descriptions": (
+                "<add_interview_question>...</add_interview_question>\n"
+                "<recall>...</recall>"
+            ),
+        }
+
+        bundle = self.runtime.build_prompt_bundle(
+            agent_name="session_coordinator",
+            task="questions",
+            module_names=get_runtime_module_names("questions"),
+            include_shared=False,
+        )
+
+        runtime_prompt = self.runtime.render_prompt(bundle, variables)
+        legacy_prompt = get_prompt("questions").format(**variables)
+
+        self.assertEqual(
+            normalize_prompt_text(runtime_prompt),
+            normalize_prompt_text(legacy_prompt),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,14 @@ SESSION_COORDINATOR_RUNTIME_MODULES = {
         "instructions",
         "output_format",
     ),
+    "questions": (
+        "persona",
+        "input_context",
+        "tool_descriptions",
+        "instructions",
+        "similar_questions_warning",
+        "output_format",
+    ),
 }
 
 
