@@ -1,5 +1,17 @@
 from utils.llm.prompt_utils import format_prompt
 
+PLANNER_RUNTIME_MODULES = {
+    "add_new_memory_planner": (
+        "main_prompt",
+        "section_path_format",
+    ),
+}
+
+
+def get_runtime_module_names(prompt_type: str):
+    return PLANNER_RUNTIME_MODULES[prompt_type]
+
+
 def get_prompt(prompt_type: str):
     if prompt_type == "add_new_memory_planner":
         return format_prompt(ADD_NEW_MEMORY_PROMPT, {

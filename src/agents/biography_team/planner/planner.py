@@ -3,12 +3,13 @@ from typing import Dict, List, TYPE_CHECKING, Optional
 
 from agents.biography_team.base_biography_agent import BiographyConfig, BiographyTeamAgent
 from agents.biography_team.models import Plan, FollowUpQuestion
-from agents.biography_team.planner.prompts import get_prompt
+from agents.biography_team.planner.prompts import get_prompt, get_runtime_module_names
 from agents.biography_team.planner.tools import AddPlan
 from agents.shared.feedback_prompts import MISSING_MEMORIES_WARNING
 from agents.shared.note_tools import ProposeFollowUp
 from content.biography.biography_styles import BIOGRAPHY_STYLE_PLANNER_INSTRUCTIONS
 from content.memory_bank.memory import Memory
+from utils.prompt_runtime import PromptRuntime
 from utils.llm.xml_formatter import extract_tool_arguments, extract_tool_calls_xml
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class BiographyPlanner(BiographyTeamAgent):
         )
         self.follow_up_questions: List[FollowUpQuestion] = []
         self.plans: List[Plan] = []
+        self.prompt_runtime = PromptRuntime()
         
         self.tools = {
             "add_plan": AddPlan(
@@ -210,6 +212,17 @@ class BiographyPlanner(BiographyTeamAgent):
                 "tool_descriptions": self.get_tools_description(
                     ["add_plan", "propose_follow_up"]),
             }
+            runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                agent_name="planner",
+                task=prompt_type,
+                module_names=get_runtime_module_names(prompt_type),
+                include_shared=False,
+            )
+            return self.prompt_runtime.render_prompt(
+                runtime_bundle,
+                prompt_params,
+                legacy_renderer=lambda: get_prompt(prompt_type).format(**prompt_params),
+            )
         elif prompt_type == "user_add_planner":
             prompt_params = {
                 **base_params,

@@ -55,12 +55,18 @@
 - 已完成 `SessionScribe` 的第三批迁移：
   - `src/agents/session_scribe/session_scribe.py` 的 `consider_and_propose_followups` 路径已通过 `PromptRuntime` 组装 prompt
   - `tests/test_session_scribe_prompt_bundle.py` 已覆盖 `SessionScribe` 三条 prompt 路径与 legacy prompt 的等价性
+- 已完成 `Planner` 的第一批迁移：
+  - `src/agents/biography_team/planner/planner.py` 的 `add_new_memory_planner` 路径已通过 `PromptRuntime` 组装 prompt
+  - 旧 `src/agents/biography_team/planner/prompts.py` 仍保留为兼容层和回退入口
 - 已新增 `SessionScribe` skill 资产：
   - `src/skills/session_scribe/update_memory_question_bank/`
   - `src/skills/session_scribe/update_session_agenda/`
   - `src/skills/session_scribe/consider_and_propose_followups/`
+- 已新增 `Planner` skill 资产：
+  - `src/skills/planner/add_new_memory_planner/`
 - 已新增测试：
   - `tests/test_session_scribe_prompt_bundle.py`
+  - `tests/test_planner_prompt_bundle.py`
 - 为了让 `unittest discover` 稳定解析 `src/utils` 包，已新增：
   - `src/utils/__init__.py`
 - 本次验证：
@@ -68,7 +74,8 @@
 
 本阶段剩余未完成内容：
 
-- `Planner` 迁移
+- `Planner` 的 `user_add_planner`
+- `Planner` 的 `user_comment_planner`
 - `SectionWriter` 迁移
 - `SessionCoordinator` 迁移
 - 第一阶段总体验收与缺失 fallback 路径的进一步覆盖
