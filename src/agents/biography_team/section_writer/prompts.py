@@ -20,6 +20,14 @@ SECTION_WRITER_RUNTIME_MODULES = {
         "available_tools",
         "output_format",
     ),
+    "user_update": (
+        "persona",
+        "user_portrait",
+        "input_context",
+        "instructions",
+        "available_tools",
+        "output_format",
+    ),
 }
 
 

@@ -75,6 +75,33 @@ class SectionWriterPromptBundleTests(unittest.TestCase):
             normalize_prompt_text(legacy_prompt),
         )
 
+    def test_user_update_prompt_matches_legacy_prompt(self) -> None:
+        variables = {
+            "user_portrait": "Lee is a robotics engineer.",
+            "section_title": "2 Career",
+            "current_content": "Lee built robotics systems for industrial clients.[MEM_1]",
+            "plan_content": "Rewrite this section to sound more personal and concrete.",
+            "event_stream": "<recall>Lee described the first client deployment in detail.</recall>",
+            "biography_structure": '{"2 Career": ["2.1 First Job"]}',
+            "style_instructions": "Write in chronological order.",
+            "tool_descriptions": "<recall>...</recall><update_section>...</update_section>",
+        }
+
+        bundle = self.runtime.build_prompt_bundle(
+            agent_name="section_writer",
+            task="user_update",
+            module_names=get_runtime_module_names("user_update"),
+            include_shared=False,
+        )
+
+        runtime_prompt = self.runtime.render_prompt(bundle, variables)
+        legacy_prompt = get_prompt("user_update").format(**variables)
+
+        self.assertEqual(
+            normalize_prompt_text(runtime_prompt),
+            normalize_prompt_text(legacy_prompt),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

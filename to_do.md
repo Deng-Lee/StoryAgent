@@ -70,6 +70,9 @@
 - 已完成 `SectionWriter` 的第二批迁移：
   - `src/agents/biography_team/section_writer/section_writer.py` 的 `user_add` 路径已通过 `PromptRuntime` 组装 prompt
   - `tests/test_section_writer_prompt_bundle.py` 已覆盖 `normal` 与 `user_add` 两条迁移路径的等价性
+- 已完成 `SectionWriter` 的第三批迁移：
+  - `src/agents/biography_team/section_writer/section_writer.py` 的 `user_update` 路径已通过 `PromptRuntime` 组装 prompt
+  - `tests/test_section_writer_prompt_bundle.py` 已覆盖 `normal`、`user_add` 与 `user_update` 三条迁移路径的等价性
 - 已新增 `SessionScribe` skill 资产：
   - `src/skills/session_scribe/update_memory_question_bank/`
   - `src/skills/session_scribe/update_session_agenda/`
@@ -81,6 +84,7 @@
 - 已新增 `SectionWriter` skill 资产：
   - `src/skills/section_writer/normal/`
   - `src/skills/section_writer/user_add/`
+  - `src/skills/section_writer/user_update/`
 - 已新增测试：
   - `tests/test_session_scribe_prompt_bundle.py`
   - `tests/test_planner_prompt_bundle.py`
@@ -93,7 +97,6 @@
 本阶段剩余未完成内容：
 
 - `SectionWriter` 的 `baseline`
-- `SectionWriter` 的 `user_update`
 - `SessionCoordinator` 迁移
 - 第一阶段总体验收与缺失 fallback 路径的进一步覆盖
 

@@ -209,24 +209,35 @@ class SectionWriter(BiographyTeamAgent):
                     hide_memory_links=False
                 )
                 current_content = curr_section.content if curr_section else ""
-                return get_prompt("user_update").format(
-                    user_portrait=self._session_agenda \
+                prompt_params = {
+                    "user_portrait": self._session_agenda \
                         .get_user_portrait_str(),
-                    section_title=todo_item.section_title,
-                    current_content=current_content,
-                    plan_content=todo_item.plan_content,
-                    event_stream=events_str,
-                    biography_structure=json.dumps(
+                    "section_title": todo_item.section_title,
+                    "current_content": current_content,
+                    "plan_content": todo_item.plan_content,
+                    "event_stream": events_str,
+                    "biography_structure": json.dumps(
                         self.get_biography_structure(), indent=2
                     ),
-                    style_instructions=
+                    "style_instructions":
                         BIOGRAPHY_STYLE_WRITER_INSTRUCTIONS.get(
-                            self.config.get("biography_style", 
+                            self.config.get("biography_style",
                                             "chronological")
                         ),
-                    tool_descriptions=self.get_tools_description(
+                    "tool_descriptions": self.get_tools_description(
                         ["recall", "update_section"]
                     )
+                }
+                runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                    agent_name="section_writer",
+                    task="user_update",
+                    module_names=get_runtime_module_names("user_update"),
+                    include_shared=False,
+                )
+                return self.prompt_runtime.render_prompt(
+                    runtime_bundle,
+                    prompt_params,
+                    legacy_renderer=lambda: get_prompt("user_update").format(**prompt_params),
                 )
             # Update a section based on newly collected memory
             else:
