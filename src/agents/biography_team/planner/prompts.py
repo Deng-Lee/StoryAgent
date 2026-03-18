@@ -5,6 +5,12 @@ PLANNER_RUNTIME_MODULES = {
         "main_prompt",
         "section_path_format",
     ),
+    "user_add_planner": (
+        "persona",
+        "context",
+        "instructions",
+        "output_format",
+    ),
 }
 
 

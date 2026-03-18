@@ -230,6 +230,17 @@ class BiographyPlanner(BiographyTeamAgent):
                 "section_prompt": kwargs.get('section_prompt'),
                 "tool_descriptions": self.get_tools_description(["add_plan"])
             }
+            runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                agent_name="planner",
+                task=prompt_type,
+                module_names=get_runtime_module_names(prompt_type),
+                include_shared=False,
+            )
+            return self.prompt_runtime.render_prompt(
+                runtime_bundle,
+                prompt_params,
+                legacy_renderer=lambda: get_prompt(prompt_type).format(**prompt_params),
+            )
         elif prompt_type == "user_comment_planner":
             prompt_params = {
                 **base_params,

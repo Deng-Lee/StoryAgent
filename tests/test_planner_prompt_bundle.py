@@ -45,6 +45,32 @@ class PlannerPromptBundleTests(unittest.TestCase):
             normalize_prompt_text(legacy_prompt),
         )
 
+    def test_user_add_planner_prompt_matches_legacy_prompt(self) -> None:
+        variables = {
+            "user_portrait": "Lee is a robotics engineer.",
+            "biography_structure": '{"1 Early Life": []}',
+            "biography_content": "# Biography",
+            "style_instructions": "Write in chronological order.",
+            "section_path": "2 Career/2.1 First Job",
+            "section_prompt": "Add a section about the user's first job in robotics.",
+            "tool_descriptions": "<add_plan>...</add_plan>",
+        }
+
+        bundle = self.runtime.build_prompt_bundle(
+            agent_name="planner",
+            task="user_add_planner",
+            module_names=get_runtime_module_names("user_add_planner"),
+            include_shared=False,
+        )
+
+        runtime_prompt = self.runtime.render_prompt(bundle, variables)
+        legacy_prompt = get_prompt("user_add_planner").format(**variables)
+
+        self.assertEqual(
+            normalize_prompt_text(runtime_prompt),
+            normalize_prompt_text(legacy_prompt),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
