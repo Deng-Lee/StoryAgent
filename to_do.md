@@ -107,14 +107,19 @@
   - `tests/test_planner_prompt_bundle.py`
   - `tests/test_section_writer_prompt_bundle.py`
   - `tests/test_session_coordinator_prompt_bundle.py`
+  - `tests/test_phase1_prompt_acceptance.py`
 - 为了让 `unittest discover` 稳定解析 `src/utils` 包，已新增：
   - `src/utils/__init__.py`
 - 本次验证：
   - `python3 -m unittest discover -s tests -p 'test_*.py'`
+- 已完成第一阶段总体验收与 fallback 覆盖：
+  - `tests/test_phase1_prompt_acceptance.py` 已汇总覆盖 15 条已迁移 prompt 路径
+  - 已验证所有已迁移路径在真实 skill 存在时不会 fallback，且与 legacy prompt 等价
+  - 已验证所有已迁移路径在 skill 缺失时会安全回退到 legacy prompt
 
 本阶段剩余未完成内容：
 
-- 第一阶段总体验收与缺失 fallback 路径的进一步覆盖
+- 无，第一阶段已完成
 
 ### 需要新增的目录
 
