@@ -374,19 +374,29 @@ class SectionWriter(BiographyTeamAgent):
                             previous_tool_call=previous_tool_call,
                             tool_call_error=tool_call_error
                         )
-                    
-                    # Create the baseline prompt
-                    prompt = get_prompt("baseline").format(
-                        user_portrait=user_portrait,
-                        new_information=formatted_memories,
-                        current_biography=current_biography,
-                        biography_structure=json.dumps(
+                    prompt_params = {
+                        "user_portrait": user_portrait,
+                        "new_information": formatted_memories,
+                        "current_biography": current_biography,
+                        "biography_structure": json.dumps(
                             self.get_biography_structure(), indent=2
                         ),
-                        tool_descriptions=self.get_tools_description(
+                        "tool_descriptions": self.get_tools_description(
                             ["add_section", "update_section"]
                         ),
-                        error_warning=error_warning
+                        "error_warning": error_warning,
+                        "first_person_instructions": FIRST_PERSON_INSTRUCTIONS,
+                    }
+                    runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                        agent_name="section_writer",
+                        task="baseline",
+                        module_names=get_runtime_module_names("baseline"),
+                        include_shared=False,
+                    )
+                    prompt = self.prompt_runtime.render_prompt(
+                        runtime_bundle,
+                        prompt_params,
+                        legacy_renderer=lambda: get_prompt("baseline").format(**prompt_params),
                     )
                     
                     # Call the LLM

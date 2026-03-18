@@ -13,6 +13,7 @@ from agents.biography_team.section_writer.prompts import (
     get_prompt,
     get_runtime_module_names,
 )
+from content.biography.biography_styles import FIRST_PERSON_INSTRUCTIONS
 from utils.prompt_runtime import PromptRuntime
 from utils.prompt_templates import normalize_prompt_text
 
@@ -96,6 +97,32 @@ class SectionWriterPromptBundleTests(unittest.TestCase):
 
         runtime_prompt = self.runtime.render_prompt(bundle, variables)
         legacy_prompt = get_prompt("user_update").format(**variables)
+
+        self.assertEqual(
+            normalize_prompt_text(runtime_prompt),
+            normalize_prompt_text(legacy_prompt),
+        )
+
+    def test_baseline_prompt_matches_legacy_prompt(self) -> None:
+        variables = {
+            "user_portrait": "Lee is a robotics engineer.",
+            "new_information": "<memory id='MEM_2'>Built a warehouse robot.</memory>",
+            "current_biography": "# Biography\n\nExisting content.",
+            "biography_structure": '{"2 Career": ["2.1 First Job"]}',
+            "tool_descriptions": "<add_section>...</add_section><update_section>...</update_section>",
+            "error_warning": "<warning>tool call failed</warning>",
+            "first_person_instructions": FIRST_PERSON_INSTRUCTIONS,
+        }
+
+        bundle = self.runtime.build_prompt_bundle(
+            agent_name="section_writer",
+            task="baseline",
+            module_names=get_runtime_module_names("baseline"),
+            include_shared=False,
+        )
+
+        runtime_prompt = self.runtime.render_prompt(bundle, variables)
+        legacy_prompt = get_prompt("baseline").format(**variables)
 
         self.assertEqual(
             normalize_prompt_text(runtime_prompt),

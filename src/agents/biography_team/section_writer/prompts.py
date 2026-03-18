@@ -28,6 +28,15 @@ SECTION_WRITER_RUNTIME_MODULES = {
         "available_tools",
         "output_format",
     ),
+    "baseline": (
+        "persona",
+        "user_portrait",
+        "input_context",
+        "instructions",
+        "available_tools",
+        "error_warning",
+        "output_format",
+    ),
 }
 
 
