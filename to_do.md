@@ -17,6 +17,56 @@
 
 在不改变当前 Agent 行为、不影响 XML 工具调用链路的前提下，将各 Agent 中分散的 prompt 资产重构为应用内可组合的 skill 模块。
 
+### 已完成回填（2026-03-18）
+
+已完成的增量：
+
+- 已新增基础运行时文件：
+  - `src/utils/prompt_templates.py`
+  - `src/utils/skill_loader.py`
+  - `src/utils/prompt_runtime.py`
+- 已新增最小可用的 skill 目录与资产：
+  - `src/skills/shared/`
+  - `src/skills/interviewer/normal/`
+  - `src/skills/interviewer/baseline/`
+- 已完成 `Interviewer` 的第一批迁移：
+  - `src/agents/interviewer/interviewer.py` 已通过 `PromptRuntime` 组装 prompt
+  - 旧 `src/agents/interviewer/prompts.py` 仍保留为兼容层和回退入口
+- 已新增测试：
+  - `tests/test_prompt_runtime.py`
+  - `tests/test_interviewer_prompt_bundle.py`
+- 已完成验证：
+  - `python3 -m unittest discover -s tests -p 'test_*.py'`
+
+当前状态说明：
+
+- 第一阶段的基础设施已经落地，且 `Interviewer` 已作为首个迁移样板接入新 runtime
+- `SessionScribe`、`Planner`、`SectionWriter`、`SessionCoordinator` 仍未迁移
+- 第一阶段整体尚未完成，后续应继续按既定顺序推进其余 agent
+
+新增进展回填：
+
+- 已完成 `SessionScribe` 的第一批迁移：
+  - `src/agents/session_scribe/session_scribe.py` 的 `update_memory_question_bank` 路径已通过 `PromptRuntime` 组装 prompt
+  - 旧 `src/agents/session_scribe/prompts.py` 仍保留为兼容层和回退入口
+- 已新增 `SessionScribe` skill 资产：
+  - `src/skills/session_scribe/update_memory_question_bank/`
+- 已新增测试：
+  - `tests/test_session_scribe_prompt_bundle.py`
+- 为了让 `unittest discover` 稳定解析 `src/utils` 包，已新增：
+  - `src/utils/__init__.py`
+- 本次验证：
+  - `python3 -m unittest discover -s tests -p 'test_*.py'`
+
+本阶段剩余未完成内容：
+
+- `SessionScribe` 的 `update_session_agenda`
+- `SessionScribe` 的 `consider_and_propose_followups`
+- `Planner` 迁移
+- `SectionWriter` 迁移
+- `SessionCoordinator` 迁移
+- 第一阶段总体验收与缺失 fallback 路径的进一步覆盖
+
 ### 需要新增的目录
 
 - `src/skills/`

@@ -4,13 +4,14 @@ import time
 
 
 from agents.base_agent import BaseAgent
-from agents.session_scribe.prompts import get_prompt
+from agents.session_scribe.prompts import get_prompt, get_runtime_module_names
 from agents.session_scribe.tools import UpdateSessionNote, UpdateMemoryBank, AddHistoricalQuestion
 from agents.shared.memory_tools import Recall
 from agents.shared.note_tools import AddInterviewQuestion
 from agents.shared.feedback_prompts import SIMILAR_QUESTIONS_WARNING, QUESTION_WARNING_OUTPUT_FORMAT
 from content.question_bank.question import QuestionSearchResult, SimilarQuestionsGroup
 from utils.llm.prompt_utils import format_prompt
+from utils.prompt_runtime import PromptRuntime
 from utils.llm.xml_formatter import extract_tool_arguments, extract_tool_calls_xml
 from utils.logger.session_logger import SessionLogger
 from utils.text_formatter import format_similar_questions
@@ -53,6 +54,7 @@ class SessionScribe(BaseAgent, Participant):
         self._notes_lock = asyncio.Lock()   # Lock for _write_notes_and_questions
         self._memory_lock = asyncio.Lock()  # Lock for update_memory_bank
         self._tasks_lock = asyncio.Lock()   # Lock for updating task counter
+        self.prompt_runtime = PromptRuntime()
 
         # Tools agent can use
         self.tools = {
@@ -354,8 +356,7 @@ class SessionScribe(BaseAgent, Participant):
 
             if len(previous_events) > self._max_events_len:
                 previous_events = previous_events[-self._max_events_len:]
-
-            return format_prompt(prompt, {
+            format_params = {
                 "user_portrait": self.interview_session.session_agenda.user_portrait,
                 "previous_events": "\n".join(previous_events),
                 "current_qa": "\n".join(current_qa),
@@ -363,7 +364,18 @@ class SessionScribe(BaseAgent, Participant):
                     selected_tools=["update_memory_bank",
                                     "add_historical_question"]
                 )
-            })
+            }
+            runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                agent_name="session_scribe",
+                task=prompt_type,
+                module_names=get_runtime_module_names(prompt_type),
+                include_shared=False,
+            )
+            return self.prompt_runtime.render_prompt(
+                runtime_bundle,
+                format_params,
+                legacy_renderer=lambda: format_prompt(get_prompt(prompt_type), format_params),
+            )
         elif prompt_type == "update_session_agenda":
             events = self.get_event_stream_str(
                 filter=[{"tag": "notes_lock_message"}], as_list=True)

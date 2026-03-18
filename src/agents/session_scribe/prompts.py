@@ -1,5 +1,20 @@
 from utils.llm.prompt_utils import format_prompt
 
+SESSION_SCRIBE_RUNTIME_MODULES = {
+    "update_memory_question_bank": (
+        "context",
+        "event_stream",
+        "tool_descriptions",
+        "instructions",
+        "output_format",
+    ),
+}
+
+
+def get_runtime_module_names(prompt_type: str):
+    return SESSION_SCRIBE_RUNTIME_MODULES[prompt_type]
+
+
 def get_prompt(prompt_type: str):
     if prompt_type == "update_memory_question_bank":
         return format_prompt(UPDATE_MEMORY_QUESTION_BANK_PROMPT, {

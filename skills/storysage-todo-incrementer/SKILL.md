@@ -108,7 +108,17 @@ If no adjustment is needed:
 
 - end with a one-sentence summary of the increment
 
-### 5. Completion format for each increment
+### 5. Backfill `to_do.md` after every completed increment
+
+After an increment passes verification and self-review, update the repo-root `to_do.md` in the same turn.
+
+- Add a concise phase-local progress summary of what landed.
+- Record the verification command or method that actually passed.
+- Record what remains unfinished in that phase if the broader phase is still open.
+- Do not mark a larger phase item complete unless the code and tests support that claim.
+- This backfill is mandatory for every completed increment and does not replace the requirement to change implementation files.
+
+### 6. Completion format for each increment
 
 When reporting a completed increment, always include:
 
