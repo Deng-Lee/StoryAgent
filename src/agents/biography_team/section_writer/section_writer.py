@@ -170,23 +170,34 @@ class SectionWriter(BiographyTeamAgent):
                 events_str = self.get_event_stream_str(
                     filter=[{"sender": self.name, "tag": "recall_response"}]
                 )
-                return get_prompt("user_add").format(
-                    user_portrait=self._session_agenda \
+                prompt_params = {
+                    "user_portrait": self._session_agenda \
                         .get_user_portrait_str(),
-                    section_path=todo_item.section_path,
-                    plan_content=todo_item.plan_content,
-                    event_stream=events_str,
-                    biography_structure=json.dumps(
+                    "section_path": todo_item.section_path,
+                    "plan_content": todo_item.plan_content,
+                    "event_stream": events_str,
+                    "biography_structure": json.dumps(
                         self.get_biography_structure(), indent=2
                     ),
-                    style_instructions=
+                    "style_instructions":
                         BIOGRAPHY_STYLE_WRITER_INSTRUCTIONS.get(
-                            self.config.get("biography_style", 
+                            self.config.get("biography_style",
                                             "chronological")
                         ),
-                    tool_descriptions=self.get_tools_description(
+                    "tool_descriptions": self.get_tools_description(
                         ["recall", "add_section"]
                     )
+                }
+                runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                    agent_name="section_writer",
+                    task="user_add",
+                    module_names=get_runtime_module_names("user_add"),
+                    include_shared=False,
+                )
+                return self.prompt_runtime.render_prompt(
+                    runtime_bundle,
+                    prompt_params,
+                    legacy_renderer=lambda: get_prompt("user_add").format(**prompt_params),
                 )
             # Update a section based on user feedback
             elif todo_item.action_type == "user_update":

@@ -12,6 +12,14 @@ SECTION_WRITER_RUNTIME_MODULES = {
         "missing_memories_warning",
         "output_format",
     ),
+    "user_add": (
+        "persona",
+        "user_portrait",
+        "input_context",
+        "instructions",
+        "available_tools",
+        "output_format",
+    ),
 }
 
 
