@@ -249,11 +249,19 @@ class BiographyPlanner(BiographyTeamAgent):
                 "user_comment": kwargs.get('user_comment'),
                 "tool_descriptions": self.get_tools_description(["add_plan"])
             }
+            runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                agent_name="planner",
+                task=prompt_type,
+                module_names=get_runtime_module_names(prompt_type),
+                include_shared=False,
+            )
+            return self.prompt_runtime.render_prompt(
+                runtime_bundle,
+                prompt_params,
+                legacy_renderer=lambda: get_prompt(prompt_type).format(**prompt_params),
+            )
         else:
             raise ValueError(f"Unknown prompt type: {prompt_type}")
-
-        # Get and format the prompt template with the parameters
-        return get_prompt(prompt_type).format(**prompt_params)
 
     def _handle_plan_added(self, new_plan: Plan) -> None:
         """Handle adding a new plan, replacing any existing plans for the same section.

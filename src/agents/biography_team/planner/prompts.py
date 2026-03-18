@@ -11,6 +11,12 @@ PLANNER_RUNTIME_MODULES = {
         "instructions",
         "output_format",
     ),
+    "user_comment_planner": (
+        "persona",
+        "context",
+        "instructions",
+        "output_format",
+    ),
 }
 
 

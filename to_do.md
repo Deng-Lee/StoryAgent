@@ -61,6 +61,9 @@
 - 已完成 `Planner` 的第二批迁移：
   - `src/agents/biography_team/planner/planner.py` 的 `user_add_planner` 路径已通过 `PromptRuntime` 组装 prompt
   - `tests/test_planner_prompt_bundle.py` 已覆盖 `add_new_memory_planner` 与 `user_add_planner` 两条迁移路径的等价性
+- 已完成 `Planner` 的第三批迁移：
+  - `src/agents/biography_team/planner/planner.py` 的 `user_comment_planner` 路径已通过 `PromptRuntime` 组装 prompt
+  - `tests/test_planner_prompt_bundle.py` 已覆盖 `Planner` 三条 prompt 路径与 legacy prompt 的等价性
 - 已新增 `SessionScribe` skill 资产：
   - `src/skills/session_scribe/update_memory_question_bank/`
   - `src/skills/session_scribe/update_session_agenda/`
@@ -68,6 +71,7 @@
 - 已新增 `Planner` skill 资产：
   - `src/skills/planner/add_new_memory_planner/`
   - `src/skills/planner/user_add_planner/`
+  - `src/skills/planner/user_comment_planner/`
 - 已新增测试：
   - `tests/test_session_scribe_prompt_bundle.py`
   - `tests/test_planner_prompt_bundle.py`
@@ -78,7 +82,6 @@
 
 本阶段剩余未完成内容：
 
-- `Planner` 的 `user_comment_planner`
 - `SectionWriter` 迁移
 - `SessionCoordinator` 迁移
 - 第一阶段总体验收与缺失 fallback 路径的进一步覆盖
