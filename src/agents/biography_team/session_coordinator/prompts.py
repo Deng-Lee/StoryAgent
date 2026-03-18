@@ -1,3 +1,28 @@
+SESSION_COORDINATOR_RUNTIME_MODULES = {
+    "summary": (
+        "persona",
+        "input_context",
+        "tool_descriptions",
+        "instructions",
+        "output_format",
+    ),
+}
+
+
+def get_runtime_module_names(prompt_type: str):
+    return SESSION_COORDINATOR_RUNTIME_MODULES[prompt_type]
+
+
+def get_prompt(prompt_type: str):
+    if prompt_type == "summary":
+        return SESSION_SUMMARY_PROMPT
+    if prompt_type == "questions":
+        return INTERVIEW_QUESTIONS_PROMPT
+    if prompt_type == "topic_extraction":
+        return TOPIC_EXTRACTION_PROMPT
+    raise KeyError(f"Unknown SessionCoordinator prompt type: {prompt_type}")
+
+
 SESSION_SUMMARY_PROMPT = """\
 <session_summary_writer_persona>
 You are a session agenda manager, responsible for accurately recording information from the session. Your task is to:

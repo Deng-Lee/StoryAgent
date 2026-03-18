@@ -3,7 +3,8 @@ import asyncio
 from agents.biography_team.base_biography_agent import BiographyConfig, BiographyTeamAgent
 
 from agents.biography_team.session_coordinator.prompts import (
-    SESSION_SUMMARY_PROMPT,
+    get_prompt,
+    get_runtime_module_names,
     INTERVIEW_QUESTIONS_PROMPT,
     TOPIC_EXTRACTION_PROMPT
 )
@@ -14,6 +15,7 @@ from agents.biography_team.models import FollowUpQuestion
 from agents.shared.memory_tools import Recall
 from agents.shared.note_tools import AddInterviewQuestion
 from content.question_bank.question import SimilarQuestionsGroup
+from utils.prompt_runtime import PromptRuntime
 from utils.llm.xml_formatter import extract_tool_arguments, extract_tool_calls_xml
 from utils.text_formatter import format_similar_questions
 
@@ -36,6 +38,7 @@ class SessionCoordinator(BiographyTeamAgent):
         # Event for selected topics (used to wait for topics to be set)
         self._selected_topics_event = asyncio.Event()
         self._selected_topics = None
+        self.prompt_runtime = PromptRuntime()
 
         # Initialize all tools
         self.tools = {
@@ -224,10 +227,21 @@ class SessionCoordinator(BiographyTeamAgent):
     def _get_summary_prompt(self, new_memories: List[Memory]) -> str:
         summary_tool_names = [
             "update_last_meeting_summary", "update_user_portrait"]
-        return SESSION_SUMMARY_PROMPT.format(
-            new_memories="\n\n".join(m.to_xml() for m in new_memories),
-            user_portrait=self._session_agenda.get_user_portrait_str(),
-            tool_descriptions=self.get_tools_description(summary_tool_names)
+        format_params = {
+            "new_memories": "\n\n".join(m.to_xml() for m in new_memories),
+            "user_portrait": self._session_agenda.get_user_portrait_str(),
+            "tool_descriptions": self.get_tools_description(summary_tool_names),
+        }
+        runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+            agent_name="session_coordinator",
+            task="summary",
+            module_names=get_runtime_module_names("summary"),
+            include_shared=False,
+        )
+        return self.prompt_runtime.render_prompt(
+            runtime_bundle,
+            format_params,
+            legacy_renderer=lambda: get_prompt("summary").format(**format_params),
         )
 
     def _get_questions_prompt(

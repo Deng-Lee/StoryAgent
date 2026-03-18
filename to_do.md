@@ -76,6 +76,9 @@
 - 已完成 `SectionWriter` 的第四批迁移：
   - `src/agents/biography_team/section_writer/section_writer.py` 的 `baseline` 路径已通过 `PromptRuntime` 组装 prompt
   - `tests/test_section_writer_prompt_bundle.py` 已覆盖 `SectionWriter` 四条 prompt 路径与 legacy prompt 的等价性
+- 已完成 `SessionCoordinator` 的第一批迁移：
+  - `src/agents/biography_team/session_coordinator/session_coordinator.py` 的 `summary` 路径已通过 `PromptRuntime` 组装 prompt
+  - 旧 `src/agents/biography_team/session_coordinator/prompts.py` 仍保留为兼容层和回退入口
 - 已新增 `SessionScribe` skill 资产：
   - `src/skills/session_scribe/update_memory_question_bank/`
   - `src/skills/session_scribe/update_session_agenda/`
@@ -89,10 +92,13 @@
   - `src/skills/section_writer/user_add/`
   - `src/skills/section_writer/user_update/`
   - `src/skills/section_writer/baseline/`
+- 已新增 `SessionCoordinator` skill 资产：
+  - `src/skills/session_coordinator/summary/`
 - 已新增测试：
   - `tests/test_session_scribe_prompt_bundle.py`
   - `tests/test_planner_prompt_bundle.py`
   - `tests/test_section_writer_prompt_bundle.py`
+  - `tests/test_session_coordinator_prompt_bundle.py`
 - 为了让 `unittest discover` 稳定解析 `src/utils` 包，已新增：
   - `src/utils/__init__.py`
 - 本次验证：
@@ -100,7 +106,7 @@
 
 本阶段剩余未完成内容：
 
-- `SessionCoordinator` 迁移
+- `SessionCoordinator` 的 `questions` 与 `topic_extraction` 路径迁移
 - 第一阶段总体验收与缺失 fallback 路径的进一步覆盖
 
 ### 需要新增的目录
