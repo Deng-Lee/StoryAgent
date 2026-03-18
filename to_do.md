@@ -52,9 +52,13 @@
 - 已完成 `SessionScribe` 的第二批迁移：
   - `src/agents/session_scribe/session_scribe.py` 的 `update_session_agenda` 路径已通过 `PromptRuntime` 组装 prompt
   - `tests/test_session_scribe_prompt_bundle.py` 已覆盖 `update_memory_question_bank` 与 `update_session_agenda` 两条迁移路径的等价性
+- 已完成 `SessionScribe` 的第三批迁移：
+  - `src/agents/session_scribe/session_scribe.py` 的 `consider_and_propose_followups` 路径已通过 `PromptRuntime` 组装 prompt
+  - `tests/test_session_scribe_prompt_bundle.py` 已覆盖 `SessionScribe` 三条 prompt 路径与 legacy prompt 的等价性
 - 已新增 `SessionScribe` skill 资产：
   - `src/skills/session_scribe/update_memory_question_bank/`
   - `src/skills/session_scribe/update_session_agenda/`
+  - `src/skills/session_scribe/consider_and_propose_followups/`
 - 已新增测试：
   - `tests/test_session_scribe_prompt_bundle.py`
 - 为了让 `unittest discover` 稳定解析 `src/utils` 包，已新增：
@@ -64,7 +68,6 @@
 
 本阶段剩余未完成内容：
 
-- `SessionScribe` 的 `consider_and_propose_followups`
 - `Planner` 迁移
 - `SectionWriter` 迁移
 - `SessionCoordinator` 迁移

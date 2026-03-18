@@ -16,6 +16,15 @@ SESSION_SCRIBE_RUNTIME_MODULES = {
         "instructions",
         "output_format",
     ),
+    "consider_and_propose_followups": (
+        "context",
+        "event_stream",
+        "questions_and_notes",
+        "tool_descriptions",
+        "instructions",
+        "similar_questions_warning",
+        "output_format",
+    ),
 }
 
 

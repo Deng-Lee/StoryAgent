@@ -331,8 +331,7 @@ class SessionScribe(BaseAgent, Participant):
                 ) if similar_questions and previous_tool_call 
                 else ""
             )
-
-            return format_prompt(prompt, {
+            format_params = {
                 "user_portrait": self.interview_session.session_agenda \
                     .get_user_portrait_str(),
                 "event_stream": "\n".join(recent_events),
@@ -346,7 +345,18 @@ class SessionScribe(BaseAgent, Participant):
                 "tool_descriptions": self.get_tools_description(
                     selected_tools=["recall", "add_interview_question"]
                 )
-            })
+            }
+            runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                agent_name="session_scribe",
+                task=prompt_type,
+                module_names=get_runtime_module_names(prompt_type),
+                include_shared=False,
+            )
+            return self.prompt_runtime.render_prompt(
+                runtime_bundle,
+                format_params,
+                legacy_renderer=lambda: format_prompt(get_prompt(prompt_type), format_params),
+            )
         elif prompt_type == "update_memory_question_bank":
             events = self.get_event_stream_str(filter=[
                 {"tag": "memory_lock_message"},

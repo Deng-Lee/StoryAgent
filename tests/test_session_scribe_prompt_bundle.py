@@ -66,6 +66,31 @@ class SessionScribePromptBundleTests(unittest.TestCase):
             normalize_prompt_text(legacy_prompt),
         )
 
+    def test_consider_and_propose_followups_prompt_matches_legacy_prompt(self) -> None:
+        variables = {
+            "user_portrait": "Lee is a robotics engineer.",
+            "event_stream": "User: I loved working in that lab.",
+            "questions_and_notes": "[1] Robotics work\n- pending",
+            "similar_questions_warning": "<warning>similar questions found</warning>",
+            "warning_output_format": "<proceed>true</proceed>",
+            "tool_descriptions": "<recall>...</recall><add_interview_question>...</add_interview_question>",
+        }
+
+        bundle = self.runtime.build_prompt_bundle(
+            agent_name="session_scribe",
+            task="consider_and_propose_followups",
+            module_names=get_runtime_module_names("consider_and_propose_followups"),
+            include_shared=False,
+        )
+
+        runtime_prompt = self.runtime.render_prompt(bundle, variables)
+        legacy_prompt = format_prompt(get_prompt("consider_and_propose_followups"), variables)
+
+        self.assertEqual(
+            normalize_prompt_text(runtime_prompt),
+            normalize_prompt_text(legacy_prompt),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
