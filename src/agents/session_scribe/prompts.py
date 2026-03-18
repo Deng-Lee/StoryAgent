@@ -8,6 +8,14 @@ SESSION_SCRIBE_RUNTIME_MODULES = {
         "instructions",
         "output_format",
     ),
+    "update_session_agenda": (
+        "context",
+        "event_stream",
+        "questions_and_notes",
+        "tool_descriptions",
+        "instructions",
+        "output_format",
+    ),
 }
 
 

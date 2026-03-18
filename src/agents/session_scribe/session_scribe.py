@@ -384,8 +384,7 @@ class SessionScribe(BaseAgent, Participant):
 
             if len(previous_events) > self._max_events_len:
                 previous_events = previous_events[-self._max_events_len:]
-
-            return format_prompt(prompt, {
+            format_params = {
                 "user_portrait": self.interview_session.session_agenda.user_portrait,
                 "previous_events": "\n".join(previous_events),
                 "current_qa": "\n".join(current_qa),
@@ -398,7 +397,18 @@ class SessionScribe(BaseAgent, Participant):
                 "tool_descriptions": self.get_tools_description(
                     selected_tools=["update_session_agenda"]
                 )
-            })
+            }
+            runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                agent_name="session_scribe",
+                task=prompt_type,
+                module_names=get_runtime_module_names(prompt_type),
+                include_shared=False,
+            )
+            return self.prompt_runtime.render_prompt(
+                runtime_bundle,
+                format_params,
+                legacy_renderer=lambda: format_prompt(get_prompt(prompt_type), format_params),
+            )
 
     async def get_session_memories(self, clear_processed=False, wait_for_processing=True, include_processed=False) -> List[Memory]:
         """Get memories added by session scribe during current session.
