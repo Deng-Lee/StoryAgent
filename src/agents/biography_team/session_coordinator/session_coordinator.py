@@ -4,8 +4,7 @@ from agents.biography_team.base_biography_agent import BiographyConfig, Biograph
 
 from agents.biography_team.session_coordinator.prompts import (
     get_prompt,
-    get_runtime_module_names,
-    TOPIC_EXTRACTION_PROMPT
+    get_runtime_module_names
 )
 from agents.biography_team.session_coordinator.tools import UpdateLastMeetingSummary, UpdateUserPortrait, DeleteInterviewQuestion
 from agents.shared.feedback_prompts import SIMILAR_QUESTIONS_WARNING, QUESTION_WARNING_OUTPUT_FORMAT
@@ -78,8 +77,22 @@ class SessionCoordinator(BiographyTeamAgent):
             .get_session_memories(include_processed=True)
 
         # Create prompt
-        prompt = TOPIC_EXTRACTION_PROMPT.format(memories_text='\n\n'.join(
-            [memory.to_xml(include_source=True) for memory in new_memories]))
+        format_params = {
+            "memories_text": "\n\n".join(
+                [memory.to_xml(include_source=True) for memory in new_memories]
+            )
+        }
+        runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+            agent_name="session_coordinator",
+            task="topic_extraction",
+            module_names=get_runtime_module_names("topic_extraction"),
+            include_shared=False,
+        )
+        prompt = self.prompt_runtime.render_prompt(
+            runtime_bundle,
+            format_params,
+            legacy_renderer=lambda: get_prompt("topic_extraction").format(**format_params),
+        )
         self.add_event(sender=self.name,
                        tag="topic_extraction_prompt", content=prompt)
 

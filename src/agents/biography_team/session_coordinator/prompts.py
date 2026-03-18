@@ -14,6 +14,9 @@ SESSION_COORDINATOR_RUNTIME_MODULES = {
         "similar_questions_warning",
         "output_format",
     ),
+    "topic_extraction": (
+        "main_prompt",
+    ),
 }
 
 

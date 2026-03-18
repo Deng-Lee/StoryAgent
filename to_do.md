@@ -82,6 +82,9 @@
 - 已完成 `SessionCoordinator` 的第二批迁移：
   - `src/agents/biography_team/session_coordinator/session_coordinator.py` 的 `questions` 路径已通过 `PromptRuntime` 组装 prompt
   - `tests/test_session_coordinator_prompt_bundle.py` 已覆盖 `SessionCoordinator` 的 `summary` 与 `questions` 两条迁移路径等价性
+- 已完成 `SessionCoordinator` 的第三批迁移：
+  - `src/agents/biography_team/session_coordinator/session_coordinator.py` 的 `topic_extraction` 路径已通过 `PromptRuntime` 组装 prompt
+  - `tests/test_session_coordinator_prompt_bundle.py` 已覆盖 `SessionCoordinator` 的 `summary`、`questions`、`topic_extraction` 三条迁移路径等价性
 - 已新增 `SessionScribe` skill 资产：
   - `src/skills/session_scribe/update_memory_question_bank/`
   - `src/skills/session_scribe/update_session_agenda/`
@@ -98,6 +101,7 @@
 - 已新增 `SessionCoordinator` skill 资产：
   - `src/skills/session_coordinator/summary/`
   - `src/skills/session_coordinator/questions/`
+  - `src/skills/session_coordinator/topic_extraction/`
 - 已新增测试：
   - `tests/test_session_scribe_prompt_bundle.py`
   - `tests/test_planner_prompt_bundle.py`
@@ -110,7 +114,6 @@
 
 本阶段剩余未完成内容：
 
-- `SessionCoordinator` 的 `topic_extraction` 路径迁移
 - 第一阶段总体验收与缺失 fallback 路径的进一步覆盖
 
 ### 需要新增的目录

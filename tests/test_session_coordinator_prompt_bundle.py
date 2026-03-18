@@ -120,6 +120,33 @@ class SessionCoordinatorPromptBundleTests(unittest.TestCase):
             normalize_prompt_text(legacy_prompt),
         )
 
+    def test_topic_extraction_prompt_matches_legacy_prompt(self) -> None:
+        variables = {
+            "memories_text": (
+                "<memory>\n"
+                "  <content>Lee talked about early robotics competitions.</content>\n"
+                "</memory>\n\n"
+                "<memory>\n"
+                "  <content>Lee also reflected on mentoring younger engineers.</content>\n"
+                "</memory>"
+            )
+        }
+
+        bundle = self.runtime.build_prompt_bundle(
+            agent_name="session_coordinator",
+            task="topic_extraction",
+            module_names=get_runtime_module_names("topic_extraction"),
+            include_shared=False,
+        )
+
+        runtime_prompt = self.runtime.render_prompt(bundle, variables)
+        legacy_prompt = get_prompt("topic_extraction").format(**variables)
+
+        self.assertEqual(
+            normalize_prompt_text(runtime_prompt),
+            normalize_prompt_text(legacy_prompt),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
