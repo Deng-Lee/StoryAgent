@@ -1,0 +1,4 @@
+interface:
+  display_name: "StorySage To-Do Incrementer"
+  short_description: "Implement StorySage to_do.md in acceptance-sized increments."
+  default_prompt: "Use $storysage-todo-incrementer to implement the next accepted increment from to_do.md."

@@ -1,0 +1,36 @@
+data/*
+data*/*
+logs*/*
+test_logs/*
+!data/sample_user_profiles
+data/sample_user_profiles/meijin/*
+data/sample_user_profiles/*/topics.json
+data/sample_user_profiles/*/conversation.md
+plots/*
+experiment_summary*
+local_cache/*
+requirements-dspy.txt
+venv/
+*.log
+.env
+.env*
+!.env.example
+gabm_interviewer_platform/
+notebooks/
+logs/
+*.pyc
+.DS_Store
+.vscode/
+*.db
+data/interview_app.db
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+environment.yml
+package-lock.json
+# SSL certificates
+*.pem
+*.key
+*.crt
+move_plots.sh
