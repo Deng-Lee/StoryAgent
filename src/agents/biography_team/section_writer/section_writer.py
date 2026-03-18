@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from agents.biography_team.base_biography_agent import BiographyConfig, BiographyTeamAgent
 from agents.biography_team.models import Plan, FollowUpQuestion
-from agents.biography_team.section_writer.prompts import get_prompt
+from agents.biography_team.section_writer.prompts import get_prompt, get_runtime_module_names
 from content.biography.biography import Section
 from content.biography.biography_styles import BIOGRAPHY_STYLE_WRITER_INSTRUCTIONS
 from agents.biography_team.section_writer.tools import (
@@ -14,6 +14,7 @@ from agents.shared.note_tools import ProposeFollowUp
 from agents.shared.memory_tools import Recall
 from agents.shared.feedback_prompts import SECTION_WRITER_TOOL_CALL_ERROR, MISSING_MEMORIES_WARNING
 from content.memory_bank.memory import Memory
+from utils.prompt_runtime import PromptRuntime
 from utils.llm.xml_formatter import extract_tool_calls_xml
 
 if TYPE_CHECKING:
@@ -33,6 +34,7 @@ class SectionWriter(BiographyTeamAgent):
             interview_session=interview_session
         )
         self.follow_up_questions: List[FollowUpQuestion] = []
+        self.prompt_runtime = PromptRuntime()
         
         self.tools = {
             "update_section": UpdateSection(biography=self.biography),
@@ -265,27 +267,39 @@ class SectionWriter(BiographyTeamAgent):
                         todo_item.memory_ids,
                         include_source=True
                     )
-                
-                return get_prompt("normal").format(
-                    user_portrait=self._session_agenda \
+
+                prompt_params = {
+                    "user_portrait": self._session_agenda \
                         .get_user_portrait_str(),
-                    section_identifier_xml=section_identifier_xml,
-                    current_content=current_content,
-                    relevant_memories=relevant_memories,
-                    plan_content=todo_item.plan_content,
-                    biography_structure=json.dumps(
+                    "section_identifier_xml": section_identifier_xml,
+                    "current_content": current_content,
+                    "relevant_memories": relevant_memories,
+                    "plan_content": todo_item.plan_content,
+                    "biography_structure": json.dumps(
                         self.get_biography_structure(), indent=2
                     ),
-                    style_instructions=
+                    "style_instructions":
                         BIOGRAPHY_STYLE_WRITER_INSTRUCTIONS.get(
-                            self.config.get("biography_style", 
+                            self.config.get("biography_style",
                                             "chronological")
                         ),
-                    tool_descriptions=self.get_tools_description(
-                        ["add_section", "update_section", 
+                    "tool_descriptions": self.get_tools_description(
+                        ["add_section", "update_section",
                          "propose_follow_up", "recall"]
                     ),
-                    missing_memories_warning=warning
+                    "missing_memories_warning": warning
+                }
+
+                runtime_bundle = self.prompt_runtime.build_prompt_bundle(
+                    agent_name="section_writer",
+                    task="normal",
+                    module_names=get_runtime_module_names("normal"),
+                    include_shared=False,
+                )
+                return self.prompt_runtime.render_prompt(
+                    runtime_bundle,
+                    prompt_params,
+                    legacy_renderer=lambda: get_prompt("normal").format(**prompt_params),
                 )
         except Exception as e:
             self.add_event(

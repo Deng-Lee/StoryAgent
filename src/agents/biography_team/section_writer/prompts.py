@@ -2,6 +2,23 @@ from agents.biography_team.planner.prompts import SECTION_PATH_FORMAT
 from content.biography.biography_styles import FIRST_PERSON_INSTRUCTIONS
 from utils.llm.prompt_utils import format_prompt
 
+SECTION_WRITER_RUNTIME_MODULES = {
+    "normal": (
+        "persona",
+        "user_portrait",
+        "input_context",
+        "instructions",
+        "available_tools",
+        "missing_memories_warning",
+        "output_format",
+    ),
+}
+
+
+def get_runtime_module_names(prompt_type: str = "normal"):
+    return SECTION_WRITER_RUNTIME_MODULES[prompt_type]
+
+
 def get_prompt(prompt_type: str = "normal"):
     if prompt_type == "normal":
         return format_prompt(SECTION_WRITER_PROMPT_TEMPLATE, {
