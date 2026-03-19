@@ -538,6 +538,342 @@ fallback 触发条件建议包括：
 - 工具参数在执行前经过 schema 校验
 - 工具运行时不再完全依赖字符串解析
 
+### 第二阶段详细实现方案
+
+第二阶段的目标不是“一次性把所有 agent 都切到 native Function Calling”，而是先补齐统一运行时，再只迁移 `Interviewer` 作为第一条生产路径，XML 保留为兼容层。
+
+#### 1. 核心分层
+
+第二阶段应将调用链明确拆成三层：
+
+1. Agent 决策层
+- 决定本轮 prompt、可用工具、任务目标
+- 不直接处理 provider 差异
+
+2. Engine / 协议层
+- 将 Agent 发给模型的工具调用请求规范化为 provider 可消费的格式
+- 将不同 provider 返回的 tool calls 统一归一化为结构化响应对象
+- 在 native Function Calling 和 XML fallback 之间路由
+
+3. BaseAgent 执行层
+- 对 tool call 参数做 schema 校验
+- 执行 sync / async tools
+- 记录 event stream
+- 保留 XML 兼容执行路径
+
+这里要特别区分：
+
+- 请求侧规范化结果
+  - 是传给模型的 prompt、tool schema、协议类型等输入
+- 响应侧规范化结果
+  - 是统一的 `AgentResponse`
+
+也就是说，`AgentResponse` 是模型返回后的统一结果，不是请求对象。
+
+#### 2. 统一数据结构
+
+建议在 `src/utils/llm/types.py` 中定义：
+
+- `ToolCall`
+  - `id`
+  - `name`
+  - `arguments`
+  - `source`
+  - `raw_payload`
+
+- `AgentResponse`
+  - `text`
+  - `tool_calls`
+  - `protocol`
+  - `raw_content`
+  - `response_metadata`
+  - `fallback_used`
+  - `fallback_reason`
+
+建议额外增加一个内部使用的 `ToolSpec`：
+
+- `name`
+- `description`
+- `json_schema`
+- `required_fields`
+
+用途是把现有 `BaseTool.args_schema` 转成 provider 无关的结构化工具定义。
+
+#### 3. `engine` 层职责边界
+
+`engine` 层在第二阶段的职责不是执行业务工具，而是做协议适配：
+
+- 请求方向：`Agent -> Model`
+  - 接收 prompt 和 `ToolSpec`
+  - 生成 provider-specific 请求 payload
+  - 决定这次走 native 还是 XML
+
+- 响应方向：`Model -> Agent`
+  - 把不同模型返回的 tool calls 统一成 `AgentResponse`
+  - 屏蔽 OpenAI / Claude / Gemini / DeepSeek 的差异
+
+所以：
+
+- `engine` 层负责规范化工具调用协议
+- `BaseAgent` 负责规范化工具执行流程
+
+#### 4. `router.py` 设计
+
+`src/utils/llm/router.py` 只负责协议路由，不负责 prompt 生成，也不直接执行 tool。
+
+建议输入：
+
+- `model_name`
+- `agent_name`
+- `has_tools`
+- `force_xml`
+
+建议输出：
+
+- `protocol`
+  - `native`
+  - `xml`
+- `reason`
+
+第一版路由规则应保守：
+
+- `Interviewer` + 支持 native tools 的模型：走 `native`
+- 其余 agent：先全部走 `xml`
+- provider 不支持 native tools：直接路由到 `xml`
+
+不要在第一版实现自动多次重试；先保证路由清晰、可测。
+
+#### 5. `engines.py` 改造方案
+
+当前 `src/utils/llm/engines.py` 只暴露文本接口。第二阶段建议保留旧接口，再补一套结构化接口：
+
+- 保留：
+  - `get_engine(model_name, **kwargs)`
+  - `invoke_engine(engine, prompt, **kwargs)`
+
+- 新增：
+  - `invoke_engine_response(engine, prompt, tools=None, protocol="xml", **kwargs) -> AgentResponse`
+
+这层要做三件事：
+
+1. native 模式
+- 将 `ToolSpec` 转成 provider 所需的 function schema
+- 调用支持 native tool calling 的模型接口
+- 从 provider 返回中提取 tool calls 和文本内容
+
+2. XML 模式
+- 保持原有字符串调用逻辑
+- 再通过兼容解析器转成 `AgentResponse`
+
+3. provider 差异收口
+- OpenAI / Together / Vertex Claude / Vertex Gemini / DeepSeek 的差异只允许留在这一层
+- 上层 agent 只能看到统一的 `AgentResponse`
+
+#### 6. `xml_formatter.py` 的新定位
+
+`src/utils/llm/xml_formatter.py` 在第二阶段不删除，而是降级为兼容层。
+
+保留现有能力：
+
+- `format_tool_as_xml_v2`
+- `parse_tool_calls`
+- `extract_tool_calls_xml`
+- `extract_tool_arguments`
+
+建议新增一个兼容入口：
+
+- `parse_xml_agent_response(response: str) -> AgentResponse`
+
+这样 XML 路径也能进入统一的结构化执行链，而不是继续在各 agent 内部分散做字符串处理。
+
+#### 7. `BaseAgent` 改造方案
+
+`src/agents/base_agent.py` 是第二阶段的核心落点。
+
+建议新增：
+
+- `get_tool_specs(selected_tools=None)`
+- `call_engine_response_async(prompt, selected_tools=None, protocol="auto")`
+- `validate_tool_call(tool_call)`
+- `execute_tool_calls(response: AgentResponse)`
+- `execute_tool_calls_async(response: AgentResponse)`
+
+建议保留旧接口：
+
+- `call_engine_async(prompt) -> str`
+- `handle_tool_calls(response: str)`
+- `handle_tool_calls_async(response: str)`
+
+这样未迁移 agent 仍可继续使用 XML 路径，不会被第二阶段中途打断。
+
+`BaseAgent` 的具体职责应包括：
+
+- 从 `self.tools` 生成 `ToolSpec`
+- 使用 `args_schema` 做参数校验
+- sync / async tool 分发执行
+- 统一记录 tool 执行事件
+- 对 XML / native 两种返回执行统一处理
+
+#### 8. `Interviewer` 作为第一条迁移路径
+
+第二阶段第一批只迁移 `Interviewer`，并且只迁：
+
+- `recall`
+- `respond_to_user`
+
+不要同时改动：
+
+- `_turn_to_respond` 循环逻辑
+- recall feedback loop 之外的业务行为
+- 其他 agent 的执行路径
+
+`src/agents/interviewer/interviewer.py` 的改法建议是：
+
+- `on_message()` 不再只接收纯文本响应
+- 改为优先消费 `AgentResponse`
+- 如果存在 `tool_calls`：
+  - 走新的结构化 tool 执行函数
+- 如果没有 `tool_calls`，但有文本：
+  - 继续使用 `_handle_response(response.text)` 作为兜底
+
+#### 9. `Interviewer` prompt 协议拆分
+
+虽然第二阶段重点不是 prompt 重构，但 `Interviewer` 要走 native Function Calling，prompt 中必须区分 XML 与 native 协议。
+
+建议在 `src/skills/interviewer/` 下增加协议分支模块，而不是重写整套 prompt：
+
+- `tool_rules_xml.md`
+- `tool_rules_native.md`
+- `output_format_xml.md`
+- `output_format_native.md`
+
+在 `src/agents/interviewer/prompts.py` 中按协议选择模块顺序。
+
+原则是：
+
+- 共享 persona / context / chat history 等模块不变
+- 只替换协议相关模块
+- XML 版本继续保留
+
+#### 10. 建议实施顺序
+
+建议按以下可验收增量推进：
+
+1. 类型与路由基础层
+- 新增 `types.py`
+- 新增 `router.py`
+- 给 `engines.py` 补结构化响应接口
+
+2. `BaseAgent` 结构化执行层
+- 补 tool spec 生成
+- 补 schema 校验
+- 补 native/XML 双协议执行路径
+
+3. `Interviewer` native 首迁
+- 只迁 `recall` 和 `respond_to_user`
+- 保留 XML fallback
+- 补最小协议差异 prompt 模块
+
+4. provider 差异补齐
+- 先让 OpenAI 路径跑通
+- 不支持 native tools 的 provider 明确回退到 XML
+
+5. 第二阶段验收
+- `Interviewer` native 路径稳定
+- XML fallback 可用
+- schema 校验生效
+- 旧路径无行为回归
+
+#### 11. 测试策略
+
+第二阶段建议测试分四层：
+
+- `tests/test_llm_router.py`
+  - 验证 native / xml 路由决策
+
+- `tests/test_agent_response_parsing.py`
+  - 验证 native provider 返回如何归一化为 `AgentResponse`
+  - 验证 XML 返回如何归一化为 `AgentResponse`
+
+- `tests/test_base_agent_tool_execution.py`
+  - 验证 `args_schema` 校验
+  - 验证 sync / async tool 执行
+  - 验证 tool 错误处理和 event 记录
+
+- `tests/test_interviewer_function_calling.py`
+  - 验证 `Interviewer` 的 native `recall`
+  - 验证 `Interviewer` 的 native `respond_to_user`
+  - 验证 XML fallback
+  - 验证无 tool call 时的文本兜底
+
+但第一版不能只停留在 fake engine 层。建议在 fake engine / stub response 路径跑通后，追加一轮真实 API 冒烟验证：
+
+- 先用 fake engine / stub response 锁定协议形态、tool schema 校验、fallback 行为
+- 再用一个支持 native Function Calling 的真实模型做最小集成验证
+- 真实 API 测试范围先限制在 `Interviewer` 的 `recall` 与 `respond_to_user`
+- 真实 API 测试重点验证：
+  - provider 实际返回能否正确归一化为 `AgentResponse`
+  - native tool calls 是否能被 `BaseAgent` 正确校验并执行
+  - native 路径失败时 XML fallback 是否仍可用
+- 真实 API 测试应作为第二阶段第一批实现的最后一步，而不是后续可选项
+
+#### 12. 第二阶段完成后的代码形态
+
+第二阶段完成后，系统的稳定职责边界应是：
+
+- agent
+  - 负责 prompt 和任务意图
+
+- engine / router
+  - 负责协议选择、provider 适配、响应归一化
+
+- base agent
+  - 负责 schema 校验、tool 执行、fallback 执行链
+
+- xml formatter
+  - 仅作为兼容层和 fallback 解析器
+
+这个形态为第三阶段的 `SessionScribe` 结构化动作输出、以及后续多模型策略提供统一接入点。
+
+### 已完成回填（2026-03-19）
+
+已完成的增量：
+
+- 已新增第二阶段基础类型与协议文件：
+  - `src/utils/llm/types.py`
+  - `src/utils/llm/router.py`
+- 已扩展 `src/utils/llm/engines.py`：
+  - 新增 `normalize_engine_response(...)`
+  - 新增 `invoke_engine_response(...)`
+  - 支持将 fake / stub engine 输出归一化为 `AgentResponse`
+  - 将 provider adapter 改为可选导入，避免基础测试被外部 SDK 阻塞
+- 已新增测试：
+  - `tests/test_llm_router.py`
+  - 覆盖 native / xml 路由决策
+  - 覆盖 fake / stub engine 的结构化响应归一化
+  - 覆盖 native 协议下 tool schema 序列化
+- 已完成验证：
+  - `python3 -m unittest discover -s tests -p 'test_*.py'`
+
+当前状态说明：
+
+- 第二阶段的协议类型、路由层、engine 响应归一化基础已经落地
+- 现有 agent 行为尚未切换到原生 Function Calling，当前增量只补底层基础设施
+- 旧 XML 调用链仍保持不变
+
+本阶段剩余未完成内容：
+
+- `src/agents/base_agent.py`
+  - 增加 `ToolSpec` 生成、schema 校验、结构化 tool call 执行路径
+- `src/utils/llm/xml_formatter.py`
+  - 增加到统一 `AgentResponse` 的兼容适配入口
+- `src/agents/interviewer/interviewer.py`
+  - 作为第一批迁移目标接入 native Function Calling
+- `src/skills/interviewer/`
+  - 补齐 native / xml 协议分支模块
+- 第二阶段真实 API 冒烟验证
+  - 在 fake engine / stub response 路径跑通后，使用真实模型验证 `Interviewer` 的 `recall` 与 `respond_to_user`
+
 ---
 
 ## 第三阶段：SessionScribe SFT
