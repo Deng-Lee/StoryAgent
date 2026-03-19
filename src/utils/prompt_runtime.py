@@ -145,6 +145,7 @@ class PromptRuntime:
             candidate_dirs.append(agent_root / task)
         if mode:
             candidate_dirs.append(agent_root / mode)
+        candidate_dirs.append(agent_root / "common")
         candidate_dirs.append(agent_root)
 
         for candidate_dir in candidate_dirs:

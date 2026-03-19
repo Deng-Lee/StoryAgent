@@ -52,6 +52,29 @@ class PromptRuntimeTests(unittest.TestCase):
         self.assertIn("tool_rules", modules)
         self.assertIn("output_contract", modules)
 
+    def test_load_skill_pack_uses_common_modules_as_fallback(self) -> None:
+        modules = load_skill_pack(
+            agent_name="planner",
+            task="user_add_planner",
+            skills_root=self.skills_root,
+            module_names=("persona", "context", "instructions", "output_format"),
+        )
+        self.assertIn("persona", modules)
+        self.assertIn("context", modules)
+        self.assertIn("instructions", modules)
+        self.assertIn("output_format", modules)
+        self.assertIn("analyze user's request", modules["persona"])
+
+    def test_load_skill_pack_prefers_task_specific_modules_over_common(self) -> None:
+        modules = load_skill_pack(
+            agent_name="planner",
+            task="user_comment_planner",
+            skills_root=self.skills_root,
+            module_names=("persona", "context", "instructions", "output_format"),
+        )
+        self.assertIn("section_title", modules["context"])
+        self.assertNotIn("section_path", modules["context"])
+
     def test_build_prompt_bundle_orders_shared_before_agent_modules(self) -> None:
         bundle = build_prompt_bundle(
             agent_name="interviewer",
@@ -97,9 +120,7 @@ class PromptRuntimeTests(unittest.TestCase):
 
     def test_render_prompt_falls_back_to_legacy_renderer_when_agent_skill_missing(self) -> None:
         bundle = self.runtime.build_prompt_bundle(
-            agent_name="planner",
-            mode="normal",
-            task="draft",
+            agent_name="does_not_exist",
         )
 
         prompt = self.runtime.render_prompt(

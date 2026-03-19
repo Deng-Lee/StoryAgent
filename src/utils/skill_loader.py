@@ -65,11 +65,11 @@ def load_skill_pack(
         candidate_dirs.append(agent_root / task)
     if mode:
         candidate_dirs.append(agent_root / mode)
+    candidate_dirs.append(agent_root / "common")
     candidate_dirs.append(agent_root)
 
-    for candidate_dir in candidate_dirs:
-        modules = _load_named_modules(candidate_dir, names)
-        if modules:
-            return modules
+    modules: Dict[str, str] = {}
+    for candidate_dir in reversed(candidate_dirs):
+        modules.update(_load_named_modules(candidate_dir, names))
 
-    return {}
+    return modules
