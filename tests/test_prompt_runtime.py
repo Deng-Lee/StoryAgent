@@ -75,6 +75,27 @@ class PromptRuntimeTests(unittest.TestCase):
         self.assertIn("section_title", modules["context"])
         self.assertNotIn("section_path", modules["context"])
 
+    def test_load_skill_pack_merges_task_specific_and_common_modules(self) -> None:
+        modules = load_skill_pack(
+            agent_name="session_scribe",
+            task="update_session_agenda",
+            skills_root=self.skills_root,
+            module_names=(
+                "context",
+                "event_stream",
+                "questions_and_notes",
+                "tool_descriptions",
+                "instructions",
+                "output_format",
+            ),
+        )
+        self.assertIn("process ONLY the most recent user message", modules["context"])
+        self.assertIn("Here is the stream of previous events for context", modules["event_stream"])
+        self.assertIn("questions and notes in the session agenda", modules["questions_and_notes"])
+        self.assertIn("manage session agenda", modules["tool_descriptions"])
+        self.assertIn("Session Agenda Update", modules["instructions"])
+        self.assertIn("<update_session_agenda>", modules["output_format"])
+
     def test_build_prompt_bundle_orders_shared_before_agent_modules(self) -> None:
         bundle = build_prompt_bundle(
             agent_name="interviewer",
