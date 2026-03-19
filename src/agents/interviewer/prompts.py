@@ -1,30 +1,53 @@
 from utils.llm.prompt_utils import format_prompt
 
 INTERVIEWER_RUNTIME_MODULES = {
-    "normal": (
-        "context",
-        "user_portrait",
-        "last_meeting_summary",
-        "chat_history",
-        "questions_and_notes",
-        "tool_descriptions",
-        "instructions",
-        "output_format",
-    ),
-    "baseline": (
-        "context",
-        "user_portrait",
-        "last_meeting_summary",
-        "chat_history",
-        "tool_descriptions",
-        "instructions",
-        "output_format",
-    ),
+    "xml": {
+        "normal": (
+            "context",
+            "user_portrait",
+            "last_meeting_summary",
+            "chat_history",
+            "questions_and_notes",
+            "tool_descriptions",
+            "instructions",
+            "output_format",
+        ),
+        "baseline": (
+            "context",
+            "user_portrait",
+            "last_meeting_summary",
+            "chat_history",
+            "tool_descriptions",
+            "instructions",
+            "output_format",
+        ),
+    },
+    "native": {
+        "normal": (
+            "context",
+            "user_portrait",
+            "last_meeting_summary",
+            "chat_history",
+            "questions_and_notes",
+            "tool_descriptions",
+            "instructions",
+            "output_format_native",
+        ),
+        "baseline": (
+            "context",
+            "user_portrait",
+            "last_meeting_summary",
+            "chat_history",
+            "tool_descriptions",
+            "instructions",
+            "output_format_native",
+        ),
+    },
 }
 
 
-def get_runtime_module_names(prompt_type: str = "normal"):
-    return INTERVIEWER_RUNTIME_MODULES[prompt_type]
+def get_runtime_module_names(prompt_type: str = "normal", protocol: str = "xml"):
+    return INTERVIEWER_RUNTIME_MODULES[protocol][prompt_type]
 
 
 def get_prompt(prompt_type: str = "normal"):

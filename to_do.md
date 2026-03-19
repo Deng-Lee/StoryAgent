@@ -872,17 +872,33 @@ fallback 触发条件建议包括：
   - 覆盖 schema 校验失败
   - 覆盖 sync / async tool 执行
   - 覆盖 XML 兼容适配入口
+- 已完成第二阶段的 `Interviewer` 首批迁移：
+  - `src/agents/interviewer/interviewer.py` 已优先消费 `AgentResponse` 与结构化 tool calls
+  - `recall` 与 `respond_to_user` 已接入 native Function Calling 路径
+  - XML fallback 仍保留并继续可用
+- 已扩展 `src/agents/interviewer/prompts.py` 与 `src/skills/interviewer/`：
+  - 已新增 native 协议分支模块
+    - `src/skills/interviewer/normal/output_format_native.md`
+    - `src/skills/interviewer/baseline/output_format_native.md`
+  - `Interviewer` prompt 运行时现在可按 `native / xml` 选择协议模块
+- 已新增测试：
+  - `tests/test_interviewer_function_calling.py`
+  - 覆盖 native `recall -> respond_to_user` 闭环
+  - 覆盖 XML fallback
+  - 覆盖无 tool call 时的文本兜底
+  - 覆盖 native prompt 的协议分支
 - 本次验证：
   - `python3 -m unittest discover -s tests -p 'test_*.py'`
 
 本阶段剩余未完成内容：
 
-- `src/agents/interviewer/interviewer.py`
-  - 作为第一批迁移目标接入 native Function Calling
-- `src/skills/interviewer/`
-  - 补齐 native / xml 协议分支模块
 - 第二阶段真实 API 冒烟验证
   - 在 fake engine / stub response 路径跑通后，使用真实模型验证 `Interviewer` 的 `recall` 与 `respond_to_user`
+- 其余 agent 的 native Function Calling 迁移
+  - `SessionScribe`
+  - `Planner`
+  - `SessionCoordinator`
+  - `SectionWriter`
 
 ---
 

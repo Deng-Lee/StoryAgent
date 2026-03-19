@@ -12,6 +12,8 @@ from agents.interviewer.prompts import (
 )
 from agents.interviewer.tools import EndConversation, RespondToUser
 from agents.shared.memory_tools import Recall
+from utils.llm.router import select_tool_call_protocol
+from utils.llm.types import AgentResponse
 from utils.llm.prompt_utils import format_prompt
 from utils.prompt_runtime import PromptRuntime
 from interview_session.session_models import Participant, Message
@@ -103,16 +105,27 @@ class Interviewer(BaseAgent, Participant):
         iterations = 0
 
         while self._turn_to_respond and iterations < self._max_consideration_iterations:
-            prompt = self._get_prompt()
+            selected_tools = self._get_selected_tools()
+            protocol = self._select_protocol(selected_tools)
+            prompt = self._get_prompt(protocol=protocol, selected_tools=selected_tools)
             self.add_event(sender=self.name, tag="llm_prompt", content=prompt)
-            response = await self.call_engine_async(prompt)
-            print(f"{GREEN}Interviewer:\n{response}{RESET}")
+            response = await self.call_engine_response_async(
+                prompt,
+                selected_tools=selected_tools,
+                protocol=protocol,
+            )
+            print(f"{GREEN}Interviewer:\n{response.text}{RESET}")
    
             try:
-                await self.handle_tool_calls_async(response)
+                if response.tool_calls:
+                    await self.execute_tool_calls_async(response)
+                elif response.text:
+                    self._handle_response(response.text)
+                    self._turn_to_respond = False
             except Exception as e:
                 print(f"Error calling tool: {e}. Use the raw response as the output.")
-                self._handle_response(response)
+                self._handle_response(response.text)
+                self._turn_to_respond = False
 
             iterations += 1
             if iterations >= self._max_consideration_iterations:
@@ -123,7 +136,21 @@ class Interviewer(BaseAgent, Participant):
                     f"iterations ({self._max_consideration_iterations})"
                 )
 
-    def _get_prompt(self):
+    def _get_selected_tools(self) -> list[str]:
+        tools_set = set(self.tools.keys())
+        if self.use_baseline:
+            tools_set.discard("recall")
+        return list(tools_set)
+
+    def _select_protocol(self, selected_tools: list[str]) -> str:
+        route = select_tool_call_protocol(
+            model_name=self.config.get("model_name", os.getenv("MODEL_NAME", "gpt-4o")),
+            agent_name=self.name,
+            has_tools=bool(selected_tools),
+        )
+        return route.protocol
+
+    def _get_prompt(self, protocol: str = "xml", selected_tools: list[str] | None = None):
         '''Gets the prompt for the interviewer. '''
         prompt_type = "baseline" if self.use_baseline else "normal"
 
@@ -156,16 +183,7 @@ class Interviewer(BaseAgent, Participant):
         recent_interviewer_messages = all_interviewer_messages[-5:] if \
             len(all_interviewer_messages) >= 5 else all_interviewer_messages
 
-        # Start with all available tools
-        tools_set = set(self.tools.keys())
-        
-        # if self.interview_session.api_participant:
-        #     # Don't end_conversation directly if API participant is present
-        #     tools_set.discard("end_conversation")
-        
-        if self.use_baseline:
-            # For baseline mode, remove recall tool
-            tools_set.discard("recall")
+        selected_tools = selected_tools or self._get_selected_tools()
 
         # Create format parameters based on prompt type
         format_params = {
@@ -180,7 +198,7 @@ class Interviewer(BaseAgent, Participant):
                 if len(all_interviewer_messages) == 0 and \
                 int(self.interview_session.session_id) != 1 \
                 else "",
-            "tool_descriptions": self.get_tools_description(list(tools_set))
+            "tool_descriptions": self.get_tools_description(selected_tools)
         }
         
         # Only add questions_and_notes for normal mode
@@ -195,7 +213,7 @@ class Interviewer(BaseAgent, Participant):
             agent_name="interviewer",
             mode=prompt_type,
             task="respond",
-            module_names=get_runtime_module_names(prompt_type),
+            module_names=get_runtime_module_names(prompt_type, protocol=protocol),
             include_shared=False,
         )
 

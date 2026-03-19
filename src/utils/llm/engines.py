@@ -35,6 +35,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency
     DeepSeekEngine = None
     deepseek_models = {}
 from utils.llm.types import AgentResponse, ToolCall, ToolProtocol, ToolSpec
+from utils.llm.xml_formatter import parse_xml_agent_response
 
 load_dotenv(override=True)
 
@@ -245,4 +246,12 @@ def invoke_engine_response(
         invoke_kwargs["tools"] = _serialize_tool_specs(tools)
 
     raw_response = engine.invoke(prompt, **invoke_kwargs)
+    if protocol == "xml":
+        if isinstance(raw_response, str):
+            return parse_xml_agent_response(raw_response)
+        if hasattr(raw_response, "content"):
+            xml_response = parse_xml_agent_response(getattr(raw_response, "content", ""))
+            xml_response.raw_content = raw_response
+            xml_response.response_metadata = getattr(raw_response, "response_metadata", {}) or {}
+            return xml_response
     return normalize_engine_response(raw_response, protocol=protocol)
