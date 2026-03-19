@@ -113,6 +113,31 @@ class PromptRuntimeTests(unittest.TestCase):
         self.assertIn("Available tools you can use", modules["tool_descriptions"])
         self.assertIn("<new_memories>", modules["input_context"])
 
+    def test_load_skill_pack_merges_interviewer_mode_specific_and_common_modules(self) -> None:
+        modules = load_skill_pack(
+            agent_name="interviewer",
+            mode="normal",
+            task="respond",
+            skills_root=self.skills_root,
+            module_names=(
+                "context",
+                "user_portrait",
+                "last_meeting_summary",
+                "chat_history",
+                "questions_and_notes",
+                "tool_descriptions",
+                "instructions",
+                "output_format",
+            ),
+        )
+        self.assertIn("friendly and casual conversation partner", modules["context"])
+        self.assertIn("general information that you know about the user", modules["user_portrait"])
+        self.assertIn("summary of the last interview session", modules["last_meeting_summary"])
+        self.assertIn("Current Conversation", modules["chat_history"])
+        self.assertIn("questions_and_notes", modules["questions_and_notes"])
+        self.assertIn("memory bank", modules["tool_descriptions"])
+        self.assertIn("<recent_interviewer_messages>", modules["instructions"])
+
     def test_build_prompt_bundle_orders_shared_before_agent_modules(self) -> None:
         bundle = build_prompt_bundle(
             agent_name="interviewer",
