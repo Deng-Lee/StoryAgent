@@ -138,6 +138,25 @@ class PromptRuntimeTests(unittest.TestCase):
         self.assertIn("memory bank", modules["tool_descriptions"])
         self.assertIn("<recent_interviewer_messages>", modules["instructions"])
 
+    def test_load_skill_pack_merges_section_writer_instruction_prefix_and_common_tail(self) -> None:
+        modules = load_skill_pack(
+            agent_name="section_writer",
+            task="user_update",
+            skills_root=self.skills_root,
+            module_names=(
+                "persona",
+                "user_portrait",
+                "input_context",
+                "instructions_intro",
+                "instructions_shared",
+                "available_tools",
+                "output_format",
+            ),
+        )
+        self.assertIn("Analyze user feedback in update plan", modules["instructions_intro"])
+        self.assertIn("## Section Writing Process", modules["instructions_shared"])
+        self.assertIn("## Writing Style:", modules["instructions_shared"])
+
     def test_build_prompt_bundle_orders_shared_before_agent_modules(self) -> None:
         bundle = build_prompt_bundle(
             agent_name="interviewer",
