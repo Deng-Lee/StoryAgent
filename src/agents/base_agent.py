@@ -8,11 +8,13 @@ import time
 
 # Third-party imports
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 # Local imports
-from utils.llm.engines import get_engine, invoke_engine
-from utils.llm.xml_formatter import format_tool_as_xml_v2, parse_tool_calls
+from utils.llm.engines import get_engine, invoke_engine, invoke_engine_response
+from utils.llm.router import select_tool_call_protocol
+from utils.llm.types import AgentResponse, ToolCall, ToolSpec
+from utils.llm.xml_formatter import format_tool_as_xml_v2, parse_xml_agent_response
 from utils.logger.session_logger import SessionLogger
 
 # Load environment variables
@@ -82,6 +84,73 @@ class BaseAgent:
         return await loop.run_in_executor(
             None,
             partial(self._call_engine, prompt)
+        )
+
+    def get_tool_specs(self, selected_tools: List[str] = None) -> List[ToolSpec]:
+        """Return structured tool specs for native Function Calling."""
+        tool_specs = []
+        for tool in self.tools.values():
+            if selected_tools and tool.name not in selected_tools:
+                continue
+
+            args_schema = getattr(tool, "args_schema", None)
+            json_schema = (
+                args_schema.model_json_schema() if args_schema and issubclass(args_schema, BaseModel)
+                else {"type": "object", "properties": {}}
+            )
+            required_fields = list(json_schema.get("required", []))
+            tool_specs.append(
+                ToolSpec(
+                    name=tool.name,
+                    description=tool.description,
+                    json_schema=json_schema,
+                    required_fields=required_fields,
+                )
+            )
+        return tool_specs
+
+    def _call_engine_response(
+        self,
+        prompt: str,
+        selected_tools: List[str] = None,
+        protocol: str = "auto",
+        force_xml: bool = False,
+    ) -> AgentResponse:
+        tool_specs = self.get_tool_specs(selected_tools)
+        if protocol == "auto":
+            route = select_tool_call_protocol(
+                model_name=self.config.get("model_name", os.getenv("MODEL_NAME", "gpt-4o")),
+                agent_name=self.name,
+                has_tools=bool(tool_specs),
+                force_xml=force_xml,
+            )
+            protocol = route.protocol
+
+        return invoke_engine_response(
+            self.engine,
+            prompt,
+            tools=tool_specs,
+            protocol=protocol,
+        )
+
+    async def call_engine_response_async(
+        self,
+        prompt: str,
+        selected_tools: List[str] = None,
+        protocol: str = "auto",
+        force_xml: bool = False,
+    ) -> AgentResponse:
+        """Asynchronously call the LLM engine and return a structured response."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                self._call_engine_response,
+                prompt,
+                selected_tools,
+                protocol,
+                force_xml,
+            ),
         )
         
     def add_event(self, sender: str, tag: str, content: str):
@@ -155,83 +224,91 @@ class BaseAgent:
         else:
             return "\n".join([format_tool_as_xml_v2(tool) \
                                for tool in self.tools.values()])
+
+    def validate_tool_call(self, tool_call: ToolCall) -> tuple[object, dict]:
+        """Validate tool arguments against the tool's args_schema."""
+        if tool_call.name not in self.tools:
+            raise ValueError(f"Tool {tool_call.name} not found")
+
+        tool = self.tools[tool_call.name]
+        args_schema = getattr(tool, "args_schema", None)
+
+        if args_schema and issubclass(args_schema, BaseModel):
+            try:
+                validated = args_schema.model_validate(tool_call.arguments or {})
+            except ValidationError as exc:
+                raise ValueError(
+                    f"Invalid arguments for tool {tool_call.name}: {exc}"
+                ) from exc
+            return tool, validated.model_dump()
+
+        return tool, dict(tool_call.arguments or {})
+
+    def execute_tool_calls(self, response: AgentResponse, raise_error: bool = False):
+        """Structured synchronous tool handling for non-I/O bound operations."""
+        result = None
+        for tool_call in response.tool_calls:
+            try:
+                tool, arguments = self.validate_tool_call(tool_call)
+
+                if asyncio.iscoroutinefunction(tool._run):
+                    raise ValueError(
+                        f"Tool {tool_call.name} is async and should use execute_tool_calls_async"
+                    )
+
+                result = tool._run(**arguments)
+                self.add_event(sender="system", tag=tool_call.name, content=result)
+            except Exception as e:
+                error_msg = f"Error calling tool {tool_call.name}: {e}"
+                self.add_event(sender="system", tag="error", content=error_msg)
+                SessionLogger.log_to_file(
+                    "execution_log",
+                    f"({self.name}) {error_msg}",
+                    log_level="error",
+                )
+                if raise_error:
+                    raise RuntimeError(error_msg) from e
+        return result
+
+    async def execute_tool_calls_async(
+        self,
+        response: AgentResponse,
+        raise_error: bool = False,
+    ):
+        """Structured async tool handling for AgentResponse objects."""
+        result = None
+        for tool_call in response.tool_calls:
+            try:
+                tool, arguments = self.validate_tool_call(tool_call)
+
+                if asyncio.iscoroutinefunction(tool._run):
+                    result = await tool._run(**arguments)
+                else:
+                    result = tool._run(**arguments)
+
+                self.add_event(sender="system", tag=tool_call.name, content=result)
+            except Exception as e:
+                error_msg = f"Error calling tool {tool_call.name}: {e}"
+                self.add_event(sender="system", tag="error", content=error_msg)
+                SessionLogger.log_to_file(
+                    "execution_log",
+                    f"({self.name}) {error_msg}",
+                    log_level="error",
+                )
+                if raise_error:
+                    raise RuntimeError(error_msg) from e
+        return result
     
     def handle_tool_calls(self, response: str, raise_error: bool = False):
         """Synchronous tool handling for non-I/O bound operations"""
-        result = None
-        if "<tool_calls>" in response:
-            tool_calls_start = response.find("<tool_calls>")
-            tool_calls_end = response.find("</tool_calls>")
-            if tool_calls_start != -1 and tool_calls_end != -1:
-                tool_calls_xml = response[
-                    tool_calls_start:tool_calls_end + len("</tool_calls>")
-                ]
-                
-                parsed_calls = parse_tool_calls(tool_calls_xml)
-                for call in parsed_calls:
-                    try:
-                        tool_name = call['tool_name']
-                        arguments = call['arguments']
-                        tool = self.tools[tool_name]
-                        
-                        # Only handle sync tools here
-                        if not asyncio.iscoroutinefunction(tool._run):
-                            result = tool._run(**arguments)
-                            self.add_event(sender="system", 
-                                           tag=tool_name, 
-                                           content=result)
-                        else:
-                            raise ValueError(
-                                f"Tool {tool_name} is async and "
-                                "should use handle_tool_calls_async"
-                            )
-                    except Exception as e:
-                        error_msg = f"Error calling tool {tool_name}: {e}"
-                        self.add_event(sender="system", tag="error",
-                                       content=error_msg)
-                        SessionLogger.log_to_file(
-                            "execution_log", 
-                            f"({self.name}) {error_msg}", 
-                            log_level="error"
-                        )
-                        if raise_error:
-                            raise RuntimeError(error_msg) from e
-        return result
+        return self.execute_tool_calls(
+            parse_xml_agent_response(response),
+            raise_error=raise_error,
+        )
 
     async def handle_tool_calls_async(self, response: str, raise_error: bool = False):
         """Asynchronous tool handling for I/O bound operations"""
-        result = None
-        if "<tool_calls>" in response:
-            tool_calls_start = response.find("<tool_calls>")
-            tool_calls_end = response.find("</tool_calls>")
-            if tool_calls_start != -1 and tool_calls_end != -1:
-                tool_calls_xml = response[
-                    tool_calls_start:tool_calls_end + len("</tool_calls>")
-                ]
-                
-                parsed_calls = parse_tool_calls(tool_calls_xml)
-                for call in parsed_calls:
-                    try:
-                        tool_name = call['tool_name']
-                        arguments = call['arguments']
-                        tool = self.tools[tool_name]
-                        
-                        # Handle both sync and async tools
-                        if asyncio.iscoroutinefunction(tool._run):
-                            result = await tool._run(**arguments)
-                        else:
-                            result = tool._run(**arguments)
-                        self.add_event(sender="system", 
-                                       tag=tool_name, content=result)
-                    except Exception as e:
-                        error_msg = f"Error calling tool {tool_name}: {e}"
-                        self.add_event(sender="system", tag="error",
-                                       content=error_msg)
-                        SessionLogger.log_to_file(
-                            "execution_log", 
-                            f"({self.name}) {error_msg}", 
-                            log_level="error"
-                        )
-                        if raise_error:
-                            raise RuntimeError(error_msg) from e
-        return result
+        return await self.execute_tool_calls_async(
+            parse_xml_agent_response(response),
+            raise_error=raise_error,
+        )

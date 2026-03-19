@@ -6,6 +6,7 @@ import json
 import re
 
 from utils.constants.colors import ORANGE, RESET
+from utils.llm.types import AgentResponse, ToolCall
 
 def format_tool_as_xml_v2(tool: Type[BaseTool]) -> str:
     """
@@ -130,6 +131,37 @@ def extract_tool_calls_xml(response: str) -> str:
     if tool_calls_start == -1 or tool_calls_end == -1:
         return ""
     return response[tool_calls_start:tool_calls_end + len("</tool_calls>")]
+
+
+def parse_xml_agent_response(response: str) -> AgentResponse:
+    """Normalize an XML-style model response into AgentResponse."""
+    tool_calls_xml = extract_tool_calls_xml(response)
+    if not tool_calls_xml:
+        return AgentResponse(
+            text=response or "",
+            tool_calls=[],
+            protocol="xml",
+            raw_content=response,
+        )
+
+    parsed_calls = parse_tool_calls(tool_calls_xml)
+    tool_calls = [
+        ToolCall(
+            id=None,
+            name=call["tool_name"],
+            arguments=call["arguments"],
+            source="xml",
+            raw_payload=call,
+        )
+        for call in parsed_calls
+    ]
+
+    return AgentResponse(
+        text=response or "",
+        tool_calls=tool_calls,
+        protocol="xml",
+        raw_content=response,
+    )
 
 def clean_malformed_xml(xml_string: str) -> str:
     """Clean malformed XML by removing unmatched tags.

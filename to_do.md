@@ -860,13 +860,23 @@ fallback 触发条件建议包括：
 - 第二阶段的协议类型、路由层、engine 响应归一化基础已经落地
 - 现有 agent 行为尚未切换到原生 Function Calling，当前增量只补底层基础设施
 - 旧 XML 调用链仍保持不变
+- 已完成第二阶段的 `BaseAgent` 结构化执行层：
+  - `src/agents/base_agent.py` 已新增 `ToolSpec` 生成、schema 校验、结构化 sync / async tool 执行入口
+  - 旧 `handle_tool_calls(...)` / `handle_tool_calls_async(...)` 已通过统一 `AgentResponse` 执行链兼容 XML 路径
+- 已扩展 `src/utils/llm/xml_formatter.py`：
+  - 新增 `parse_xml_agent_response(...)`
+  - XML 响应现在可以归一化为统一的 `AgentResponse`
+- 已新增测试：
+  - `tests/test_base_agent_tool_execution.py`
+  - 覆盖 `ToolSpec` 生成
+  - 覆盖 schema 校验失败
+  - 覆盖 sync / async tool 执行
+  - 覆盖 XML 兼容适配入口
+- 本次验证：
+  - `python3 -m unittest discover -s tests -p 'test_*.py'`
 
 本阶段剩余未完成内容：
 
-- `src/agents/base_agent.py`
-  - 增加 `ToolSpec` 生成、schema 校验、结构化 tool call 执行路径
-- `src/utils/llm/xml_formatter.py`
-  - 增加到统一 `AgentResponse` 的兼容适配入口
 - `src/agents/interviewer/interviewer.py`
   - 作为第一批迁移目标接入 native Function Calling
 - `src/skills/interviewer/`
